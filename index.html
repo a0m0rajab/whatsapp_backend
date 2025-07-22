@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Real-time Value</title>
+  </head>
+  <body>
+    <h1>Current Value: <span id="value">Waiting...</span></h1>
+
+    <script
+      src="https://cdn.socket.io/4.8.1/socket.io.min.js"
+      integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+"
+      crossorigin="anonymous"
+    ></script>
+
+    <script>
+      const socket = io("http://localhost:3001", {
+        transports: ["websocket"],
+      });
+      socket.on("connect", () => {
+        console.log("Connected to server");
+      });
+      //   connect to local host 3001
+
+      socket.on("valueUpdate", (newValue) => {
+        document.getElementById("value").textContent = newValue;
+      });
+    </script>
+  </body>
+</html>
