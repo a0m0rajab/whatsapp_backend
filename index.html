@@ -6,24 +6,34 @@
   </head>
   <body>
     <h1>Current Value: <span id="value">Waiting...</span></h1>
+    <canvas id="qrcode"></canvas>
 
     <script
       src="https://cdn.socket.io/4.8.1/socket.io.min.js"
       integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+"
       crossorigin="anonymous"
     ></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
     <script>
       const socket = io("http://localhost:3001", {
         transports: ["websocket"],
       });
+
       socket.on("connect", () => {
         console.log("Connected to server");
       });
-      //   connect to local host 3001
 
-      socket.on("valueUpdate", (newValue) => {
+      socket.on("qrCode", (newValue) => {
         document.getElementById("value").textContent = newValue;
+
+        // Generate QR code
+        const qrCodeContainer = document.getElementById("qrcode");
+        qrCodeContainer.innerHTML = ""; // Clear previous QR code
+        QRCode.toCanvas(qrCodeContainer, newValue, (error) => {
+          if (error) console.error(error);
+          console.log("QR code generated");
+        });
       });
     </script>
   </body>
