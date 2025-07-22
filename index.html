@@ -25,7 +25,7 @@
       });
 
       socket.on("qrCode", (newValue) => {
-        document.getElementById("value").textContent = newValue;
+        document.getElementById("value").textContent = "QR Generated";
 
         // Generate QR code
         const qrCodeContainer = document.getElementById("qrcode");
