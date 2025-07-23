@@ -7,6 +7,7 @@
   <body>
     <h1>Current Value: <span id="value">Waiting...</span></h1>
     <canvas id="qrcode"></canvas>
+    <h2 id="progress" style="display: none">Progress: 0%</h2>
 
     <script
       src="https://cdn.socket.io/4.8.1/socket.io.min.js"
@@ -29,11 +30,27 @@
 
         // Generate QR code
         const qrCodeContainer = document.getElementById("qrcode");
+        qrCodeContainer.style.display = "block"; // Show QR code
         qrCodeContainer.innerHTML = ""; // Clear previous QR code
         QRCode.toCanvas(qrCodeContainer, newValue, (error) => {
           if (error) console.error(error);
           console.log("QR code generated");
         });
+      });
+
+      socket.on("progress", (data) => {
+        const { percentage, length, i } = data;
+
+        // Update progress display
+        const progressElement = document.getElementById("progress");
+        progressElement.style.display = "block"; // Show progress
+        progressElement.textContent = `Progress: ${percentage}% (${
+          i + 1
+        }/${length})`;
+
+        // Hide QR code when progress starts
+        const qrCodeContainer = document.getElementById("qrcode");
+        qrCodeContainer.style.display = "none";
       });
     </script>
   </body>

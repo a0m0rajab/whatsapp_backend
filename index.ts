@@ -9,6 +9,8 @@ interface ContactResult {
     date: Date | null;
     messageCount?: number;
     error?: string;
+    id?: string;
+    number?: string;
 }
 
 
@@ -19,7 +21,7 @@ const io = new Server(server);
 app.use(express.static("public")); // Serve static frontend
 
 io.on("connection", (socket: Socket) => {
-    console.log("Client connected");
+    // console.log("Client connected");
 
     const client = new Client({
         authStrategy: new NoAuth(),
@@ -27,40 +29,56 @@ io.on("connection", (socket: Socket) => {
     });
 
     client.on("qr", (qr: string) => {
-        console.log("QR Code regenerated");
+        // console.log("QR Code regenerated");
         socket.emit("qrCode", qr);
     });
 
+
     client.on('ready', async () => {
-        console.log('\n✅ WhatsApp client is ready!\n');
+        socket.emit('qrCode', 'Ready, syncing');
+        // console.log('\n✅ WhatsApp client is ready!\n');
         await waitForSyncComplete(client);
-        const contacts: Contact[] = await client.getContacts();
-        console.log(`👥 Found ${contacts.length} contacts. Processing...\n`);
+        socket.emit('qrCode', 'Sync completed, starting contact processing');
+        const contacts: Contact[] = (await client.getContacts()).slice(0, 1000); // Limit to 1000 contacts for performance
+        // console.log(`👥 Found ${contacts.length} contacts. Processing...\n`);
 
         const results: ContactResult[] = [];
-
+        const length = contacts.length;
+        // console.log(`👥 Found ${length} contacts. Processing...\n`);
         for (let i = 0; i < contacts.length; i++) {
             const contact = contacts[i];
+            const contactId = contact.id._serialized; // Get the serialized ID
+            const contactNumber = contact.number; // Get the contact number
             const name = contact.name || contact.pushname || contact.number;
-            process.stdout.write(`🔄 [${i + 1}/${contacts.length}] ${name}... `);
+            // process.stdout.write(`🔄 [${i + 1}/${contacts.length}] ${name}... `);
+            // console.log(`🔄 [${i + 1}/${length}] ${name}... `);
+            // make it percentage based
+            const percentage = ((i + 1) / length * 100).toFixed(2);
+            // process.stdout.write(` (${percentage}%) `);
+            // console.log(` (${percentage}%) `);
+            // Emit progress to the frontend
+            socket.emit("progress", { length, i, percentage: `${percentage}%` });
 
+            // socket.emit("progress", { name, percentage: `${percentage}%` });
             try {
                 const chat = await contact.getChat();
                 const chatSynced = await chat.syncHistory();
-                console.log(`✅ Chat synced: ${chatSynced}`);
-                const messages = await chat.fetchMessages({});
+                // console.log(`✅ Chat synced: ${chatSynced}`);
+                const messages = await chat.fetchMessages({
+                    limit: 100,
+                });
                 if (messages.length > 0) {
                     const lastMessage = messages[0];
                     const date = new Date(lastMessage.timestamp * 1000);
-                    results.push({ name, date, messageCount: messages.length });
-                    console.log(`✅ Last contacted: ${date.toLocaleString()}`);
+                    results.push({ name, date, messageCount: messages.length, id: contactId, number: contactNumber });
+                    // console.log(`✅ Last contacted: ${date.toLocaleString()}`);
                 } else {
-                    results.push({ name, date: null, messageCount: 0 });
-                    console.log('📭 No message history');
+                    results.push({ name, date: null, messageCount: 0, id: contactId, number: contactNumber });
+                    // console.log('📭 No message history');
                 }
             } catch (err: any) {
-                results.push({ name, date: null, error: err.message });
-                console.log(`⚠️  Error: ${err.message}`);
+                results.push({ name, date: null, error: err.message, id: contactId, number: contactNumber });
+                // console.log(`⚠️  Error: ${err.message}`);
             }
         }
 
@@ -68,19 +86,25 @@ io.on("connection", (socket: Socket) => {
         results.sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
 
         // Output summary
-        console.log('\n📋 Sorted Contact Summary:\n');
-        for (const result of results) {
-            if (result.date) {
-                console.log(`📞 ${result.name}: ${result.date.toLocaleString()} , Messages: ${result.messageCount || 0}`);
-            } else if (result.error) {
-                // console.log(`⚠️  ${result.name}: Error - ${result.error}`);
-            } else {
-                // console.log(`📭 ${result.name}: No message history`);
-            }
-        }
-        console.log(`\n📊 Total contacts processed: ${results.length}`);
-        console.log('✅ All contacts processed successfully!\n');
-        process.exit();
+        // console.log('\n📋 Sorted Contact Summary:\n');
+        // for (const result of results) {
+        //     if (result.date) {
+        //         // console.log(`📞 ${result.name}: ${result.date.toLocaleString()} , Messages: ${result.messageCount || 0}`);
+        //     } else if (result.error) {
+        //         // // console.log(`⚠️  ${result.name}: Error - ${result.error}`);
+        //     } else {
+        //         // // console.log(`📭 ${result.name}: No message history`);
+        //     }
+        // }
+        // const chunkArray = (arr, size) =>
+        //     arr.reduce((acc, _, i) => (i % size ? acc : [...acc, arr.slice(i, i + size)]), []);
+
+        // for (const chunk of chunkArray(bigArray, 1000)) {
+        //     await supabase.from('your_table').insert(chunk);
+        // }
+        // console.log(`\n📊 Total contacts processed: ${results.length}`);
+        // console.log('✅ All contacts processed successfully!\n');
+        // process.exit();
     });
 
     client.initialize();
@@ -88,14 +112,14 @@ io.on("connection", (socket: Socket) => {
 
 const PORT: number = 3001;
 server.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    // console.log(`Server running on http://localhost:${PORT}`);
 });
 
 async function waitForSyncComplete(
     client: Client,
     options = { checkInterval: 1000, stableChecks: 3, maxWaitTime: 30000 }
 ): Promise<void> {
-    console.log('⏳ Waiting for WhatsApp to finish syncing chats...');
+    // console.log('⏳ Waiting for WhatsApp to finish syncing chats...');
 
     let previousCount = 0;
     let stableCount = 0;
@@ -116,7 +140,7 @@ async function waitForSyncComplete(
         previousCount = currentCount;
 
         if (stableCount >= options.stableChecks) {
-            console.log(`✅ WhatsApp sync complete. ${currentCount} chats loaded.`);
+            // console.log(`✅ WhatsApp sync complete. ${currentCount} chats loaded.`);
             return;
         }
 
