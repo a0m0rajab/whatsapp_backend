@@ -44,16 +44,20 @@ io.on("connection", async (socket: Socket) => {
         access_token: accessToken,
         refresh_token: refreshToken // Assuming the same token is used for both access and refresh
     });
+    console.log("Supabase session created:");
     if (userError || !user) {
+
         console.error("Failed to authenticate user:", userError);
         socket.emit("authError", "Authentication failed");
         socket.disconnect();
         return;
     }
+    console.log("Client starting")
     const client = new Client({
         authStrategy: new NoAuth(),
-        puppeteer: { headless: true },
+        puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] },
     });
+    console.log("Client created");
 
     client.on("qr", (qr: string) => {
         console.log("QR Code regenerated");
