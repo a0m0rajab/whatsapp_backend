@@ -15,7 +15,8 @@ RUN apk add --no-cache \
     font-noto \
     fonts-noto-cjk \
     fontconfig \
-    bash
+    bash \
+    libc6-compat
 
 # Set environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
