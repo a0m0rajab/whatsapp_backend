@@ -35,6 +35,7 @@ io.on("connection", (socket: Socket) => {
 
 
     client.on('ready', async () => {
+        socket.emit("hideQrCode");
         socket.emit('qrCode', 'Ready, syncing');
         // console.log('\n✅ WhatsApp client is ready!\n');
         await waitForSyncComplete(client);

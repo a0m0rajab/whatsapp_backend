@@ -38,19 +38,19 @@
         });
       });
 
+      socket.on("hideQrCode", () => {
+        const qrCodeContainer = document.getElementById("qrcode");
+        qrCodeContainer.style.display = "none"; // Hide QR code
+      });
+
       socket.on("progress", (data) => {
         const { percentage, length, i } = data;
-
         // Update progress display
         const progressElement = document.getElementById("progress");
         progressElement.style.display = "block"; // Show progress
         progressElement.textContent = `Progress: ${percentage}% (${
           i + 1
         }/${length})`;
-
-        // Hide QR code when progress starts
-        const qrCodeContainer = document.getElementById("qrcode");
-        qrCodeContainer.style.display = "none";
       });
     </script>
   </body>
