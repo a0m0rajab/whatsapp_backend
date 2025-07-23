@@ -39,6 +39,9 @@ io.on("connection", (socket: Socket) => {
         console.log("Client authenticated");
     }
     );
+    socket.on("disconnect", () => {
+        console.log("Client disconnected");
+    });
 
     client.on('ready', async () => {
         socket.emit("hideQrCode");
