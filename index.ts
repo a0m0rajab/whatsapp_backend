@@ -35,6 +35,10 @@ io.on("connection", (socket: Socket) => {
         socket.emit("qrCode", qr);
     });
 
+    socket.on("auth", () => {
+        console.log("Client authenticated");
+    }
+    );
 
     client.on('ready', async () => {
         socket.emit("hideQrCode");

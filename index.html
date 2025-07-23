@@ -20,10 +20,10 @@
       const socket = io("http://localhost:3001", {
         transports: ["websocket"],
       });
-
       socket.on("connect", () => {
         console.log("Connected to server");
       });
+      socket.emit("auth", { token: "YOUR_AUTH_TOKEN" });
 
       socket.on("qrCode", (newValue) => {
         document.getElementById("value").textContent = "QR Generated";
