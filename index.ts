@@ -21,15 +21,32 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static("public")); // Serve static frontend
-
-io.on("connection", (socket: Socket) => {
+let isProcessing = false;
+io.on("connection", async (socket: Socket) => {
     // console.log("Client connected");
-    const token = socket.handshake.auth.token;
-    console.log("Auth token received:", token);
-
+    const accessToken = socket.handshake.auth.accessToken;
+    const refreshToken = socket.handshake.auth.refreshToken;
     // Validate the token (e.g., using Supabase or JWT verification)
-    if (!token) {
+    if (!accessToken || !refreshToken) {
         console.log("No token provided. Disconnecting...");
+        socket.disconnect();
+        return;
+    }
+    console.log("Auth token received:");
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+    const supabase = createClient(
+        supabaseUrl,
+        anonKey
+    );
+    // connect supabase to user based on the token 
+    const { data: user, error: userError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken // Assuming the same token is used for both access and refresh
+    });
+    if (userError || !user) {
+        console.error("Failed to authenticate user:", userError);
+        socket.emit("authError", "Authentication failed");
         socket.disconnect();
         return;
     }
@@ -48,16 +65,19 @@ io.on("connection", (socket: Socket) => {
     }
     );
     socket.on("disconnect", () => {
+        console.log('isProcessing:', isProcessing);
+        if (!isProcessing) client.destroy();
         console.log("Client disconnected");
     });
 
     client.on('ready', async () => {
+        isProcessing = true;
         socket.emit("hideQrCode");
         // socket.emit('qrCode', 'Ready, syncing');
         console.log('\n✅ WhatsApp client is ready!\n');
         await waitForSyncComplete(client);
         // socket.emit('qrCode', 'Sync completed, starting contact processing');
-        const contacts: Contact[] = (await client.getContacts()).slice(0, 1000); // Limit to 1000 contacts for performance
+        const contacts: Contact[] = (await client.getContacts()); //.slice(0, 1000); // Limit to 1000 contacts for performance
         console.log(`👥 Found ${contacts.length} contacts. Processing...\n`);
 
         const results: ContactResult[] = [];
@@ -67,7 +87,7 @@ io.on("connection", (socket: Socket) => {
             const contact = contacts[i];
             const contactId = contact.id._serialized; // Get the serialized ID
             const contactNumber = contact.number; // Get the contact number
-            const name = contact.name || contact.pushname || contact.number;
+            const name = contact.name || contact.pushname || contact.number || "Unknown";
             // process.stdout.write(`🔄 [${i + 1}/${contacts.length}] ${name}... `);
             // console.log(`🔄 [${i + 1}/${length}] ${name}... `);
             // make it percentage based
@@ -104,12 +124,7 @@ io.on("connection", (socket: Socket) => {
         results.sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
         // create Supabase Client for service Role Key
 
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-        const serviceRoleKey = process.env.SERVICE_ROLE_KEY || "";
-        const supabase = createClient(
-            supabaseUrl,
-            serviceRoleKey
-        );
+
         // add results to Supabase in batchs 
 
         // Output summary
@@ -134,6 +149,11 @@ io.on("connection", (socket: Socket) => {
         }
         // console.log(`\n📊 Total contacts processed: ${results.length}`);
         console.log('✅ All contacts processed successfully!\n');
+        await client.logout();
+        console.log('Logging out and destroying client...');
+        await client.destroy();
+        console.log('Client destroyed');
+        isProcessing = false;
         // process.exit();
     });
 
