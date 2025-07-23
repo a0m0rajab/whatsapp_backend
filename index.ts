@@ -2,7 +2,9 @@ import { Client, Contact, NoAuth } from "whatsapp-web.js";
 import express, { Application } from "express";
 import http from "http";
 import { Server, Socket } from "socket.io";
-
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+dotenv.config();
 
 interface ContactResult {
     name: string;
@@ -29,19 +31,19 @@ io.on("connection", (socket: Socket) => {
     });
 
     client.on("qr", (qr: string) => {
-        // console.log("QR Code regenerated");
+        console.log("QR Code regenerated");
         socket.emit("qrCode", qr);
     });
 
 
     client.on('ready', async () => {
         socket.emit("hideQrCode");
-        socket.emit('qrCode', 'Ready, syncing');
-        // console.log('\n✅ WhatsApp client is ready!\n');
+        // socket.emit('qrCode', 'Ready, syncing');
+        console.log('\n✅ WhatsApp client is ready!\n');
         await waitForSyncComplete(client);
-        socket.emit('qrCode', 'Sync completed, starting contact processing');
+        // socket.emit('qrCode', 'Sync completed, starting contact processing');
         const contacts: Contact[] = (await client.getContacts()).slice(0, 1000); // Limit to 1000 contacts for performance
-        // console.log(`👥 Found ${contacts.length} contacts. Processing...\n`);
+        console.log(`👥 Found ${contacts.length} contacts. Processing...\n`);
 
         const results: ContactResult[] = [];
         const length = contacts.length;
@@ -85,6 +87,15 @@ io.on("connection", (socket: Socket) => {
 
         // Sort by latest date
         results.sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
+        // create Supabase Client for service Role Key
+
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+        const serviceRoleKey = process.env.SERVICE_ROLE_KEY || "";
+        const supabase = createClient(
+            supabaseUrl,
+            serviceRoleKey
+        );
+        // add results to Supabase in batchs 
 
         // Output summary
         // console.log('\n📋 Sorted Contact Summary:\n');
@@ -97,14 +108,17 @@ io.on("connection", (socket: Socket) => {
         //         // // console.log(`📭 ${result.name}: No message history`);
         //     }
         // }
-        // const chunkArray = (arr, size) =>
-        //     arr.reduce((acc, _, i) => (i % size ? acc : [...acc, arr.slice(i, i + size)]), []);
-
-        // for (const chunk of chunkArray(bigArray, 1000)) {
-        //     await supabase.from('your_table').insert(chunk);
-        // }
+        const chunkArray = (arr, size) =>
+            arr.reduce((acc, _, i) => (i % size ? acc : [...acc, arr.slice(i, i + size)]), []);
+        console.log(`\n📊 Total contacts processed: ${results.length}`);
+        for (const chunk of chunkArray(results, 1000)) {
+            const { data, error } = await supabase.from('contacts').insert(chunk);
+            if (error) {
+                console.error('Error inserting contacts:', error);
+            }
+        }
         // console.log(`\n📊 Total contacts processed: ${results.length}`);
-        // console.log('✅ All contacts processed successfully!\n');
+        console.log('✅ All contacts processed successfully!\n');
         // process.exit();
     });
 
