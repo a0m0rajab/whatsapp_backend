@@ -13,7 +13,6 @@ RUN apk add --no-cache \
     udev \
     ttf-dejavu \
     font-noto \
-    fonts-noto-cjk \
     fontconfig \
     bash \
     libc6-compat
