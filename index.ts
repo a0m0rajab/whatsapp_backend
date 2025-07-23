@@ -7,6 +7,7 @@ import { Server, Socket } from "socket.io";
 interface ContactResult {
     name: string;
     date: Date | null;
+    messageCount?: number;
     error?: string;
 }
 
@@ -45,15 +46,16 @@ io.on("connection", (socket: Socket) => {
 
             try {
                 const chat = await contact.getChat();
-                const messages = await chat.fetchMessages({ limit: 1 });
-
+                const chatSynced = await chat.syncHistory();
+                console.log(`✅ Chat synced: ${chatSynced}`);
+                const messages = await chat.fetchMessages({});
                 if (messages.length > 0) {
                     const lastMessage = messages[0];
                     const date = new Date(lastMessage.timestamp * 1000);
-                    results.push({ name, date });
+                    results.push({ name, date, messageCount: messages.length });
                     console.log(`✅ Last contacted: ${date.toLocaleString()}`);
                 } else {
-                    results.push({ name, date: null });
+                    results.push({ name, date: null, messageCount: 0 });
                     console.log('📭 No message history');
                 }
             } catch (err: any) {
@@ -69,11 +71,11 @@ io.on("connection", (socket: Socket) => {
         console.log('\n📋 Sorted Contact Summary:\n');
         for (const result of results) {
             if (result.date) {
-                console.log(`📞 ${result.name}: ${result.date.toLocaleString()}`);
+                console.log(`📞 ${result.name}: ${result.date.toLocaleString()} , Messages: ${result.messageCount || 0}`);
             } else if (result.error) {
-                console.log(`⚠️  ${result.name}: Error - ${result.error}`);
+                // console.log(`⚠️  ${result.name}: Error - ${result.error}`);
             } else {
-                console.log(`📭 ${result.name}: No message history`);
+                // console.log(`📭 ${result.name}: No message history`);
             }
         }
         console.log(`\n📊 Total contacts processed: ${results.length}`);
