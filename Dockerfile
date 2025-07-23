@@ -8,13 +8,19 @@ RUN apk add --no-cache \
     harfbuzz \
     ca-certificates \
     ttf-freefont \
-    dumb-init
+    dumb-init \
+    libstdc++ \
+    udev \
+    ttf-dejavu \
+    font-noto \
+    fonts-noto-cjk \
+    fontconfig \
+    bash
 
 # Set environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
     PUPPETEER_DISABLE_DEV_SHM_USAGE=true
-
 
 # Set the working directory
 WORKDIR /app
