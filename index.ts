@@ -24,7 +24,15 @@ app.use(express.static("public")); // Serve static frontend
 
 io.on("connection", (socket: Socket) => {
     // console.log("Client connected");
+    const token = socket.handshake.auth.token;
+    console.log("Auth token received:", token);
 
+    // Validate the token (e.g., using Supabase or JWT verification)
+    if (!token) {
+        console.log("No token provided. Disconnecting...");
+        socket.disconnect();
+        return;
+    }
     const client = new Client({
         authStrategy: new NoAuth(),
         puppeteer: { headless: true },
