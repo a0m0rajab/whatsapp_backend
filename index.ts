@@ -55,7 +55,16 @@ io.on("connection", async (socket: Socket) => {
     console.log("Client starting")
     const client = new Client({
         authStrategy: new NoAuth(),
-        puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] },
+        puppeteer: {
+            headless: true, args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-extensions',
+                '--disable-software-rasterizer',
+            ]
+        },
     });
     console.log("Client created");
 
